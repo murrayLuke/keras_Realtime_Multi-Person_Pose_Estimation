@@ -1,3 +1,13 @@
+### Changes By LTT
+
+- Added missing files `config` and `config_reader.py`
+- Added `requirements.txt` so you can `pip install -r requirements.txt`
+  - Note if you don't want to deal with compiling tensorflow for gpu then change the line in `requirements.txt ` `tensorflow-gpu==1.7.0` into `tensorflow==1.7.0`
+
+
+
+
+
 ### About this fork
 
 This fork contains **pure python version** of [Realtime Multi-Person Pose Estimation](https://github.com/ZheC/Realtime_Multi-Person_Pose_Estimation). Initially it was forked from [Michal Faber fork](https://github.com/michalfaber/keras_Realtime_Multi-Person_Pose_Estimation), all credit for porting original work to Keras goes to him.
@@ -72,7 +82,7 @@ any image file as an input.
 **Fixed problem with the training procedure. 
  Here are my results after training for 5 epochs = 25000 iterations (1 epoch is ~5000 batches)
  The loss values are quite similar as in the original training - [output.txt](https://github.com/ZheC/Realtime_Multi-Person_Pose_Estimation/blob/master/training/example_loss/output.txt)**
-   
+
 <p align="center">
 <img src="https://github.com/michalfaber/keras_Realtime_Multi-Person_Pose_Estimation/blob/master/readme/losses.png", width="700">
 </p>
@@ -89,7 +99,7 @@ any image file as an input.
   which was a problem in previous approach (tool rmpe_dataset_transformer)
   This allows you to run augmentation locally or on separate node. 
   You can start 2 instances, one serving training set and a second one serving validation set (on different port if locally)** 
-  
+
 - Install gsutil `curl https://sdk.cloud.google.com | bash`. This is a really helpful tool for downloading large datasets. 
 - Download the data set (~25 GB) `cd dataset; sh get_dataset.sh`,
 - Download [COCO official toolbox](https://github.com/pdollar/coco) in `dataset/coco/` . 
@@ -110,7 +120,7 @@ any image file as an input.
 - Set the correct number of samples within `python train_pose.py` - variables "train_samples = ???" and "val_samples = ???".  
  This number is used by keras to determine how many samples are in 1 epoch.
 - Train the model in a third terminal `python train_pose.py`
-    
+  
 ## Related repository
 - CVPR'16, [Convolutional Pose Machines](https://github.com/shihenw/convolutional-pose-machines-release).
 - CVPR'17, [Realtime Multi-Person Pose Estimation](https://github.com/ZheC/Realtime_Multi-Person_Pose_Estimation).
@@ -124,4 +134,3 @@ Please cite the paper in your publications if it helps your research:
       booktitle = {The IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
       year = {2017}
       }
-	  
