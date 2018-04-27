@@ -8,6 +8,7 @@ dataset/trainmask2017
 dataset/valmask2017
 dataset/*.h5
 dataset/annotations
+dataset/nyu_hand_dataset_v2*
 dataset/coco
 .idea
 __pycache__

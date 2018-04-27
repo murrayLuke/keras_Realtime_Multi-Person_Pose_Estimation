@@ -6,7 +6,7 @@ from training.ds_generators import DataGeneratorClient, DataIterator
 from config import COCOSourceConfig, GetConfig
 
 use_client_gen = False
-batch_size = 10
+batch_size = 5
 
 task = sys.argv[1] if len(sys.argv)>1 else "train"
 config_name = sys.argv[2] if len(sys.argv)>2 else "Canonical"
