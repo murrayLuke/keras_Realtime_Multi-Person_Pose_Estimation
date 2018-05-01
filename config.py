@@ -73,7 +73,95 @@ class CanonicalConfig:
         rightParts = [ parts_dict[p] for p in ["Rsho", "Relb", "Rwri", "Rhip", "Rkne", "Rank", "Reye", "Rear"] ]
         return leftParts,rightParts
 
+class HandConfig:
 
+
+    def __init__(self):
+
+        self.width = 368
+        self.height = 368
+
+        self.stride = 8
+
+        self.parts = ['F1_KNU3_A', 'F1_KNU3_B', 'F1_KNU2_A', 'F1_KNU2_B', 'F1_KNU1_A', 'F1_KNU1_B', 
+        'F2_KNU3_A', 'F2_KNU3_B', 'F2_KNU2_A', 'F2_KNU2_B', 'F2_KNU1_A', 'F2_KNU1_B', 
+        'F3_KNU3_A', 'F3_KNU3_B', 'F3_KNU2_A', 'F3_KNU2_B', 'F3_KNU1_A', 'F3_KNU1_B', 
+        'F4_KNU3_A', 'F4_KNU3_B', 'F4_KNU2_A', 'F4_KNU2_B', 'F4_KNU1_A', 'F4_KNU1_B', 
+        'TH_KNU3_A', 'TH_KNU3_B', 'TH_KNU2_A', 'TH_KNU2_B', 'TH_KNU1_A', 'TH_KNU1_B', 
+        'PALM_1', 'PALM_2', 'PALM_3', 'PALM_4', 'PALM_5', 'PALM_6']
+        self.num_parts = len(self.parts)
+        self.parts_dict = dict(zip(self.parts, range(self.num_parts)))
+        self.parts += ["background"] # TODO wtf is the background
+        self.num_parts_with_background = len(self.parts)
+
+        # flipping doesn't make sense for hands
+        self.leftParts = None
+        self.rightParts = None
+
+        # this numbers probably copied from matlab they are 1.. based not 0.. based
+
+        self.limb_from =  ['F1_KNU3_A', 'F1_KNU3_B', 'F1_KNU2_A', 'F1_KNU2_B', 'F1_KNU1_A',
+                            'F2_KNU3_A', 'F2_KNU3_B', 'F2_KNU2_A', 'F2_KNU2_B', 'F2_KNU1_A',
+                            'F3_KNU3_A', 'F3_KNU3_B', 'F3_KNU2_A', 'F3_KNU2_B', 'F3_KNU1_A',
+                            'F4_KNU3_A', 'F4_KNU3_B', 'F4_KNU2_A', 'F4_KNU2_B', 'F4_KNU1_A',
+                            'TH_KNU3_A', 'TH_KNU3_B', 'TH_KNU2_A', 'TH_KNU2_B', 'TH_KNU1_A',
+                            'TH_KNU1_B',
+                            'PALM_2',
+                            'PALM_6',
+                            'PALM_6',
+                            'PALM_4',
+                            'PALM_3',
+                             'F1_KNU1_B',
+                             'F2_KNU1_B',
+                             'F3_KNU1_B',
+                             'F4_KNU1_B']
+        self.limb_to = ['F1_KNU3_B', 'F1_KNU2_A', 'F1_KNU2_B', 'F1_KNU1_A', 'F1_KNU1_B',
+                        'F2_KNU3_B', 'F2_KNU2_A', 'F2_KNU2_B', 'F2_KNU1_A', 'F2_KNU1_B',
+                        'F3_KNU3_B', 'F3_KNU2_A', 'F3_KNU2_B', 'F3_KNU1_A', 'F3_KNU1_B',
+                        'F4_KNU3_B', 'F4_KNU2_A', 'F4_KNU2_B', 'F4_KNU1_A', 'F4_KNU1_B',
+                        'TH_KNU3_B', 'TH_KNU2_A', 'TH_KNU2_B', 'TH_KNU1_A', 'TH_KNU1_B',
+                        'PALM_2',
+                        'PALM_6',
+                        'PALM_1',
+                        'PALM_5',
+                        'PALM_5',
+                        'PALM_5',
+                        'PALM_4',
+                        'PALM_4',
+                        'PALM_3',
+                        'PALM_3']
+
+        self.limb_from = [ self.parts_dict[n] for n in self.limb_from ]
+        self.limb_to = [ self.parts_dict[n] for n in self.limb_to ]
+
+        self.limbs_conn = list(zip(self.limb_from, self.limb_to))
+
+        self.paf_layers = 2*len(self.limbs_conn)
+        self.heat_layers = self.num_parts
+        self.num_layers = self.paf_layers + self.heat_layers + 1
+
+        self.paf_start = 0
+        self.heat_start = self.paf_layers
+        self.bkg_start = self.paf_layers + self.heat_layers
+
+        #self.data_shape = (self.height, self.width, 3)     # 368, 368, 3
+        self.mask_shape = (self.height//self.stride, self.width//self.stride)  # 46, 46
+        self.parts_shape = (self.height//self.stride, self.width//self.stride, self.num_layers)  # 46, 46, 57
+
+        class TransformationParams:
+
+            def __init__(self):
+                self.target_dist = 0.6;
+                self.scale_prob = 1;  # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
+                self.scale_min = 0.5;
+                self.scale_max = 1.1;
+                self.max_rotate_degree = 40.
+                self.center_perterb_max = 40.
+                self.flip_prob = 0.0 # never flip
+                self.sigma = 7.
+                self.paf_thre = 8.  # it is original 1.0 * stride in this program
+
+        self.transform_params = TransformationParams()
 
 class COCOSourceConfig:
 
@@ -143,6 +231,7 @@ class COCOSourceConfig:
 
 
 Configs["Canonical"] = CanonicalConfig
+Configs["NYU_Hand"] = HandConfig
 
 
 def GetConfig(config_name):

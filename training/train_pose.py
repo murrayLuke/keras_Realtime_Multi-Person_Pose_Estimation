@@ -1,5 +1,5 @@
 import sys
-sys.path.append("..")
+# sys.path.append("..")
 
 from training.train_common import prepare, train, validate, save_network_input_output, test_augmentation_speed
 from training.ds_generators import DataGeneratorClient, DataIterator
@@ -16,9 +16,9 @@ epoch = int(sys.argv[4]) if len(sys.argv)>4 and sys.argv[4]!='' else None
 
 config = GetConfig(config_name)
 
-train_client = DataIterator(config, COCOSourceConfig("../dataset/coco_train_dataset.h5"), shuffle=True,
+train_client = DataIterator(config, COCOSourceConfig("./dataset/coco_train_dataset.h5"), shuffle=True, # TODO change back to ../ also for the line below
                             augment=True, batch_size=batch_size)
-val_client = DataIterator(config, COCOSourceConfig("../dataset/coco_val_dataset.h5"), shuffle=False, augment=False,
+val_client = DataIterator(config, COCOSourceConfig("./dataset/coco_val_dataset.h5"), shuffle=False, augment=False,
                           batch_size=batch_size)
 
 train_samples = train_client.num_samples()

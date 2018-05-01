@@ -1,0 +1,5 @@
+epoch,loss,weight_stage1_L1_loss,weight_stage1_L2_loss,weight_stage2_L1_loss,weight_stage2_L2_loss,weight_stage3_L1_loss,weight_stage3_L2_loss,weight_stage4_L1_loss,weight_stage4_L2_loss,weight_stage5_L1_loss,weight_stage5_L2_loss,weight_stage6_L1_loss,weight_stage6_L2_loss
+0,1027.4660123604256,144.88707651286734,42.9020404848541,129.55640682867576,38.78053790587788,128.87841823152473,38.623509640724706,128.7726704030576,38.43063872056185,128.53822585847922,38.431341409165874,128.1521384589739,38.196592522576395
+1,inf,127.95688297663078,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf
+2,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan
+3,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan
