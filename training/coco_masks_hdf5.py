@@ -29,45 +29,8 @@ val_hdf5_path = os.path.join(dataset_dir, "coco_val_dataset.h5")
 val_size = 2645 # size of validation set
 
 
-def make_mask(img_dir, img_id, img_anns, coco):
-
-    img_path = os.path.join(img_dir, "%012d.jpg" % img_id)
-    img = cv2.imread(img_path)
-    h, w, c = img.shape
-
-    mask_all = np.zeros((h, w), dtype=np.uint8)
-    mask_miss = np.zeros((h, w), dtype=np.uint8)
-
-    flag = 0
-    for p in img_anns:
-        seg = p["segmentation"]
-
-        if p["iscrowd"] == 1:
-            mask_crowd = coco.annToMask(p)
-            temp = np.bitwise_and(mask_all, mask_crowd)
-            mask_crowd = mask_crowd - temp
-            flag += 1
-            continue
-        else:
-            mask = coco.annToMask(p)
-
-        mask_all = np.bitwise_or(mask, mask_all)
-
-        if p["num_keypoints"] <= 0:
-            mask_miss = np.bitwise_or(mask, mask_miss)
-
-    if flag<1:
-        mask_miss = np.logical_not(mask_miss)
-    elif flag == 1:
-        mask_miss = np.logical_not(np.bitwise_or(mask_miss, mask_crowd))
-        mask_all = np.bitwise_or(mask_all, mask_crowd)
-    else:
-        raise Exception("crowd segments > 1")
-
-    mask_miss = mask_miss.astype(np.uint8)
-    mask_miss *= 255
-
-    return img, mask_miss
+def make_mask(image_rec):
+    return  np.zeros(image_rec, dtype=np.uint8)
 
 def process_image(image_rec, img_id, image_index, img_anns, dataset_type):
 

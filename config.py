@@ -8,7 +8,6 @@ Configs = {}
 class CanonicalConfig:
 
     def __init__(self):
-
         self.width = 368
         self.height = 368
 
@@ -78,6 +77,7 @@ class HandConfig:
 
     def __init__(self):
 
+        # LSMTODO previous w, h 368, maybe should be square, all nyu pictures are 480 by 640
         self.width = 368
         self.height = 368
 
@@ -222,6 +222,36 @@ class COCOSourceConfig:
 
     def source(self):
 
+        return self.hdf5_source
+
+class NYUHANDSourceConfig:
+
+
+    def __init__(self, hdf5_source):
+
+        self.hdf5_source = hdf5_source
+        self.parts = ['F1_KNU3_A', 'F1_KNU3_B', 'F1_KNU2_A', 'F1_KNU2_B', 'F1_KNU1_A', 'F1_KNU1_B', 
+        'F2_KNU3_A', 'F2_KNU3_B', 'F2_KNU2_A', 'F2_KNU2_B', 'F2_KNU1_A', 'F2_KNU1_B', 
+        'F3_KNU3_A', 'F3_KNU3_B', 'F3_KNU2_A', 'F3_KNU2_B', 'F3_KNU1_A', 'F3_KNU1_B', 
+        'F4_KNU3_A', 'F4_KNU3_B', 'F4_KNU2_A', 'F4_KNU2_B', 'F4_KNU1_A', 'F4_KNU1_B', 
+        'TH_KNU3_A', 'TH_KNU3_B', 'TH_KNU2_A', 'TH_KNU2_B', 'TH_KNU1_A', 'TH_KNU1_B', 
+        'PALM_1', 'PALM_2', 'PALM_3', 'PALM_4', 'PALM_5', 'PALM_6']
+
+        self.num_parts = len(self.parts)
+
+        # for COCO neck is calculated like mean of 2 shoulders.
+        self.parts_dict = dict(zip(self.parts, range(self.num_parts)))
+
+    def convert(self, meta, global_config):
+        return meta
+
+
+
+    def convert_mask(self, mask, global_config, joints = None):
+        mask = np.repeat(mask[:,:,np.newaxis], global_config.num_layers, axis=2)
+        return mask
+
+    def source(self):
         return self.hdf5_source
 
 

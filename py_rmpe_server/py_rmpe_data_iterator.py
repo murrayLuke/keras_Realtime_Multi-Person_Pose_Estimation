@@ -12,6 +12,8 @@ from time import time
 
 class RawDataIterator:
 
+    # global_config is the hand config written in config.py
+    # config is the cocosourceconfig
     def __init__(self, global_config, configs, shuffle = True, augment = True):
 
         self.global_config = global_config

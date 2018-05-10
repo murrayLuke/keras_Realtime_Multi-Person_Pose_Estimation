@@ -186,6 +186,8 @@ class DataGeneratorClient(DataIteratorBase):
 
 class DataIterator(DataIteratorBase):
 
+    # global_config is the hand config written in config.py
+    # config is the cocosourceconfig
     def __init__(self, global_config, config, shuffle=True, augment=True, batch_size=10, limit=None):
 
         super(DataIterator, self).__init__(global_config, batch_size)
