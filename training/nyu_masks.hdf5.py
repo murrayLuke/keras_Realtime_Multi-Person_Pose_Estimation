@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from pycocotools.coco import COCO
 from scipy.spatial.distance import cdist
 import numpy as np
 import cv2
@@ -141,10 +140,8 @@ def process():
 
         # the dataset type
         dataset_type = ds[2]  
-
         # the actual dataset as a dictionary
         dataset = sio.loadmat(anno_path)
-
         for image_index, kinect_idx in tqdm(generateTrainIds(dataset_type)):
             # image annotations TODO define what these are
             # bbox
