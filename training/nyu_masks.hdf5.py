@@ -36,7 +36,7 @@ tr_hdf5_path = os.path.join(dataset_dir, "NYU_Hand_train_dataset.h5")
 val_hdf5_path = os.path.join(dataset_dir, "NYU_Hand_val_dataset.h5")
 
 def make_mask(image_rec):
-    return  np.zeros(image_rec, dtype=np.uint8)
+    return  np.ones(image_rec, dtype=np.uint8) * 255
 
 # return none if the image is a bad image otherwise
 # return a dictionary which is instance (see code)
