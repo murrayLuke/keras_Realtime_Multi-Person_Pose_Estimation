@@ -18,7 +18,7 @@ epoch = int(sys.argv[4]) if len(sys.argv)>4 and sys.argv[4]!='' else None
 
 config = GetConfig(config_name)
 train_client = DataIterator(config, NYUHANDSourceConfig("../dataset/nyu_hand_dataset_v2/dataset/NYU_Hand_train_dataset.h5"), shuffle=True, # TODO change back to ../ also for the line below
-                            augment=True, batch_size=batch_size)
+                            augment=False, batch_size=batch_size)
 val_client = DataIterator(config, NYUHANDSourceConfig("../dataset/nyu_hand_dataset_v2/dataset/NYU_Hand_val_dataset.h5"), shuffle=False, augment=False,
                           batch_size=batch_size)
 
