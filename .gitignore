@@ -24,3 +24,5 @@ training/Canonical/weights.0002.h5
 training/Canonical/weights.0001.h5
 training/Canonical.val.tsv
 Canonical.csv
+training/NYU_Hand/
+NYU_Hand/weights.0001.h5

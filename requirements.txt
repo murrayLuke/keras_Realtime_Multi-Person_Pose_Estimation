@@ -55,6 +55,7 @@ pywinpty==0.5.1
 PyYAML==3.12
 pyzmq==17.0.0
 qtconsole==4.3.1
+rope==0.10.7
 scipy==1.0.1
 Send2Trash==1.5.0
 simplegeneric==0.8.1
@@ -65,6 +66,7 @@ termcolor==1.1.0
 terminado==0.8.1
 testpath==0.3.1
 tornado==5.0.2
+tqdm==4.23.3
 traitlets==4.3.2
 wcwidth==0.1.7
 webencodings==0.5.1

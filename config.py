@@ -243,6 +243,9 @@ class NYUHANDSourceConfig:
         self.parts_dict = dict(zip(self.parts, range(self.num_parts)))
 
     def convert(self, meta, global_config):
+        joints = np.array(meta['joints'])
+        assert joints.shape[1] == len(self.parts)
+        meta['joints'] = joints
         return meta
 
 

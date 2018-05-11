@@ -141,8 +141,8 @@ def prepare(config, config_name, exp_id, train_samples, val_samples, batch_size,
 
 def train(config, model, train_client, val_client, iterations_per_epoch, validation_steps, metrics_id, last_epoch, use_client_gen, callbacks_list):
 
+    print(f'num epochs {max_iter}')
     for epoch in range(last_epoch, max_iter):
-
         train_di = train_client.gen()
 
         # train for one iteration
