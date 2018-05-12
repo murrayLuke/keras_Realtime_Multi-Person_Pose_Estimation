@@ -186,10 +186,10 @@ def generateTrainIds(dataset_type):
 
     if 'val' in dataset_type:
         imgMax = 3
-        kinectMax = 1000
+        kinectMax = 5000
     else:
         imgMax = 3
-        kinectMax = 5000    
+        kinectMax = 30000    
 
     ids = []
     for imgIdx in range(1, imgMax + 1):
