@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# Execute from the current working directory
+#$ -cwd
+#
+#  This is a long-running job
+#$ -l day
+#
+#  Can use up to 6GB of memory
+#$ -l vf=4G
+#
+#  Use 4 GPUs
+#$ -l gpus=4
+#
+
+. /gpfs/data/jhtlab/CSCI2951I/hands/keras_Realtime_Multi-Person_Pose_Estimation/venv/bin/activate
+which python
+cd /gpfs/data/jhtlab/CSCI2951I/hands/keras_Realtime_Multi-Person_Pose_Estimation/training
+
+python ./train_small_pose.py train NYU_Small_Hand nyu_small_hand_short_one

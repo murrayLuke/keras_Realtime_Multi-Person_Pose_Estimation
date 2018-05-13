@@ -8,3 +8,6 @@ __pycache__
 .ipynb_checkpoints
 .Rproj.user
 venv/
+dataset/coco/
+dataset/test2017/
+dataset/val2017/

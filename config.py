@@ -163,6 +163,77 @@ class HandConfig:
 
         self.transform_params = TransformationParams()
 
+class HandConfigSmall:
+    def __init__(self):
+
+        # LSMTODO previous w, h 368, maybe should be square, all nyu pictures are 480 by 640
+        self.width = 368
+        self.height = 368
+
+        self.stride = 8
+
+        self.parts = ['F1_KNU3_A', 'F1_KNU2_A', 'F1_KNU1_A', 'F1_KNU1_B', 
+        'F3_KNU3_A', 'F3_KNU2_A', 'F3_KNU1_A', 'F3_KNU1_B', 
+        'F2_KNU3_A', 'F2_KNU2_A', 'F2_KNU1_A', 'F2_KNU1_B', 
+        'F4_KNU3_A', 'F4_KNU2_A', 'F4_KNU1_A', 'F4_KNU1_B', 
+        'TH_KNU3_A', 'TH_KNU2_A', 'TH_KNU1_A', 'TH_KNU1_B', 
+        'PALM_1']
+        self.num_parts = len(self.parts)
+        self.parts_dict = dict(zip(self.parts, range(self.num_parts)))
+        # self.parts += ["background"] # TODO wtf is the background
+        # self.num_parts_with_background = len(self.parts)
+
+        # flipping doesn't make sense for hands
+        self.leftParts = None
+        self.rightParts = None
+
+        # this numbers probably copied from matlab they are 1.. based not 0.. based
+
+        self.limb_from =  ['PALM_1', 'PALM_1', 'PALM_1', 'PALM_1', 'PALM_1',
+                           'F1_KNU1_B', 'F1_KNU1_A', 'F1_KNU2_A',
+                           'F2_KNU1_B', 'F2_KNU1_A', 'F2_KNU2_A',
+                           'F3_KNU1_B', 'F3_KNU1_A', 'F3_KNU2_A',
+                           'F4_KNU1_B', 'F4_KNU1_A', 'F4_KNU2_A',
+                           'TH_KNU1_B', 'TH_KNU1_A', 'TH_KNU2_A',]
+        self.limb_to = ['F1_KNU1_B', 'F2_KNU1_B', 'F3_KNU1_B', 'F4_KNU1_B', 'TH_KNU1_B',
+                        'F1_KNU1_A', 'F1_KNU2_A', 'F1_KNU3_A',
+                        'F2_KNU1_A', 'F2_KNU2_A', 'F2_KNU3_A',
+                        'F3_KNU1_A', 'F3_KNU2_A', 'F3_KNU3_A',
+                        'F4_KNU1_A', 'F4_KNU2_A', 'F4_KNU3_A',
+                        'TH_KNU1_A', 'TH_KNU2_A', 'TH_KNU3_A']
+
+        self.limb_from = [ self.parts_dict[n] for n in self.limb_from ]
+        self.limb_to = [ self.parts_dict[n] for n in self.limb_to ]
+
+        self.limbs_conn = list(zip(self.limb_from, self.limb_to))
+
+        self.paf_layers = 2*len(self.limbs_conn)
+        self.heat_layers = self.num_parts
+        self.num_layers = self.paf_layers + self.heat_layers + 1
+
+        self.paf_start = 0
+        self.heat_start = self.paf_layers
+        self.bkg_start = self.paf_layers + self.heat_layers
+
+        #self.data_shape = (self.height, self.width, 3)     # 368, 368, 3
+        self.mask_shape = (self.height//self.stride, self.width//self.stride)  # 46, 46
+        self.parts_shape = (self.height//self.stride, self.width//self.stride, self.num_layers)  # 46, 46, 57
+
+        class TransformationParams:
+
+            def __init__(self):
+                self.target_dist = 0.6;
+                self.scale_prob = 1;  # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
+                self.scale_min = 0.5;
+                self.scale_max = 1.1;
+                self.max_rotate_degree = 40.
+                self.center_perterb_max = 40.
+                self.flip_prob = 0.0 # never flip
+                self.sigma = 7.
+                self.paf_thre = 8.  # it is original 1.0 * stride in this program
+
+        self.transform_params = TransformationParams()
+
 class COCOSourceConfig:
 
 
@@ -258,6 +329,40 @@ class NYUHANDSourceConfig:
         return self.hdf5_source
 
 
+class NYUSmallHandSourceConfig:
+
+
+    def __init__(self, hdf5_source):
+
+        self.hdf5_source = hdf5_source
+        self.parts = ['F1_KNU3_A', 'F1_KNU2_A', 'F1_KNU1_A', 'F1_KNU1_B', 
+                        'F3_KNU3_A', 'F3_KNU2_A', 'F3_KNU1_A', 'F3_KNU1_B', 
+                        'F2_KNU3_A', 'F2_KNU2_A', 'F2_KNU1_A', 'F2_KNU1_B', 
+                        'F4_KNU3_A', 'F4_KNU2_A', 'F4_KNU1_A', 'F4_KNU1_B', 
+                        'TH_KNU3_A', 'TH_KNU2_A', 'TH_KNU1_A', 'TH_KNU1_B', 
+                        'PALM_1']
+
+        self.num_parts = len(self.parts)
+
+        # for COCO neck is calculated like mean of 2 shoulders.
+        self.parts_dict = dict(zip(self.parts, range(self.num_parts)))
+
+    def convert(self, meta, global_config):
+        joints = np.array(meta['joints'])
+        assert joints.shape[1] == len(self.parts)
+        meta['joints'] = joints
+        return meta
+
+
+
+    def convert_mask(self, mask, global_config, joints = None):
+        mask = np.repeat(mask[:,:,np.newaxis], global_config.num_layers, axis=2)
+        return mask
+
+    def source(self):
+        return self.hdf5_source
+
+
 
 # more information on keypoints mapping is here
 # https://github.com/ZheC/Realtime_Multi-Person_Pose_Estimation/issues/7
@@ -265,6 +370,7 @@ class NYUHANDSourceConfig:
 
 Configs["Canonical"] = CanonicalConfig
 Configs["NYU_Hand"] = HandConfig
+Configs["NYU_Small_Hand"] = HandConfigSmall
 
 
 def GetConfig(config_name):
@@ -285,8 +391,8 @@ def GetConfig(config_name):
         assert dct[y] is None
         dct[y] = name + ":y"
 
-    from pprint import pprint
-    pprint(dict(zip(range(len(dct)), dct)))
+    # from pprint import pprint
+    # pprint(dict(zip(range(len(dct)), dct)))
 
     return config
 
