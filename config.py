@@ -225,12 +225,12 @@ class HandConfigSmall:
 
             def __init__(self):
                 self.target_dist = 0.6;
-                self.scale_prob = 1;  # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
+                self.scale_prob = .5;  # TODO: this is actually scale unprobability, i.e. 1 = off, 0 = always, not sure if it is a bug or not
                 self.scale_min = 0.5;
                 self.scale_max = 1.1;
-                self.max_rotate_degree = 40.
-                self.center_perterb_max = 40.
-                self.flip_prob = 0.0 # never flip
+                self.max_rotate_degree = 180.
+                self.center_perterb_max = 70.
+                self.flip_prob = 0.5 # never flip
                 self.sigma = 7.
                 self.paf_thre = 8.  # it is original 1.0 * stride in this program
 
