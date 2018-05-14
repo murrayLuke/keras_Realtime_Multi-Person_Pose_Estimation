@@ -393,8 +393,8 @@ def GetConfig(config_name):
         assert dct[y] is None
         dct[y] = name + ":y"
 
-    # from pprint import pprint
-    # pprint(dict(zip(range(len(dct)), dct)))
+    from pprint import pprint
+    pprint(dict(zip(range(len(dct)), dct)))
 
     return config
 

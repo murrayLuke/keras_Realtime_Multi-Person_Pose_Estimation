@@ -7,6 +7,7 @@ import util
 from config_reader import config_reader
 from scipy.ndimage.filters import gaussian_filter
 from model import get_testing_model
+from config import GetConfig
 
 
 # find connection in the specified sequence, center 29 is in the position 15
@@ -24,16 +25,33 @@ colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0]
           [0, 255, 0], \
           [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255],
           [85, 0, 255], \
-          [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
+          [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85], [255, 0, 85], [255, 0, 85], [255, 0, 85]]
 
 
-def process (input_image, params, model_params):
+def process (input_image, params, model_params, config):
 
+    # limbSeq = []
+    # mapIdx = []
+    # for (i,(fr,to)) in enumerate(config.limbs_conn):
+    #     limbSeq.append([fr, to])
+    #     mapIdx.append[[i * 2, i * 2 + 1]]
+
+
+    limbSeq = [list(x) for x in config.limbs_conn]
+    numLimbConn = len(limbSeq)
+    numParts = config.num_parts
+    numPartsWithBackground = config.num_parts_with_background
+    mapIdx = [[x * 2, x * 2 + 1] for x in range(numLimbConn)]
+
+    # read the input image
     oriImg = cv2.imread(input_image)  # B,G,R order
+
+    # list of float multipliers used for scaling
     multiplier = [x * model_params['boxsize'] / oriImg.shape[0] for x in params['scale_search']]
 
-    heatmap_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], 19))
-    paf_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], 38))
+
+    heatmap_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], numPartsWithBackground))
+    paf_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], 2 * numLimbConn))
 
     for m in range(len(multiplier)):
         scale = multiplier[m]
@@ -66,7 +84,7 @@ def process (input_image, params, model_params):
     all_peaks = []
     peak_counter = 0
 
-    for part in range(18):
+    for part in range(numParts):
         map_ori = heatmap_avg[:, :, part]
         map = gaussian_filter(map_ori, sigma=3)
 
@@ -94,12 +112,12 @@ def process (input_image, params, model_params):
     mid_num = 10
 
     for k in range(len(mapIdx)):
-        score_mid = paf_avg[:, :, [x - 19 for x in mapIdx[k]]]
-        candA = all_peaks[limbSeq[k][0] - 1]
-        candB = all_peaks[limbSeq[k][1] - 1]
+        score_mid = paf_avg[:, :, [x for x in mapIdx[k]]]
+        candA = all_peaks[limbSeq[k][0]]
+        candB = all_peaks[limbSeq[k][1]]
         nA = len(candA)
         nB = len(candB)
-        indexA, indexB = limbSeq[k]
+        # indexA, indexB = limbSeq[k]
         if (nA != 0 and nB != 0):
             connection_candidate = []
             for i in range(nA):
@@ -147,14 +165,14 @@ def process (input_image, params, model_params):
 
     # last number in each row is the total parts number of that person
     # the second last number in each row is the score of the overall configuration
-    subset = -1 * np.ones((0, 20))
+    subset = -1 * np.ones((0, numParts + 2))
     candidate = np.array([item for sublist in all_peaks for item in sublist])
 
     for k in range(len(mapIdx)):
         if k not in special_k:
             partAs = connection_all[k][:, 0]
             partBs = connection_all[k][:, 1]
-            indexA, indexB = np.array(limbSeq[k]) - 1
+            indexA, indexB = np.array(limbSeq[k])
 
             for i in range(len(connection_all[k])):  # = 1:size(temp,1)
                 found = 0
@@ -184,8 +202,8 @@ def process (input_image, params, model_params):
                         subset[j1][-2] += candidate[partBs[i].astype(int), 2] + connection_all[k][i][2]
 
                 # if find no partA in the subset, create a new subset
-                elif not found and k < 17:
-                    row = -1 * np.ones(20)
+                elif not found and k < numParts:#17:
+                    row = -1 * np.ones(numParts + 2)#np.ones(20)
                     row[indexA] = partAs[i]
                     row[indexB] = partBs[i]
                     row[-1] = 2
@@ -201,13 +219,13 @@ def process (input_image, params, model_params):
     subset = np.delete(subset, deleteIdx, axis=0)
 
     canvas = cv2.imread(input_image)  # B,G,R order
-    for i in range(18):
+    for i in range(numParts):
         for j in range(len(all_peaks[i])):
             cv2.circle(canvas, all_peaks[i][j][0:2], 4, colors[i], thickness=-1)
 
     stickwidth = 4
 
-    for i in range(17):
+    for i in range(numLimbConn): #range(17):
         for n in range(len(subset)):
             index = subset[n][np.array(limbSeq[i]) - 1]
             if -1 in index:
@@ -229,6 +247,7 @@ def process (input_image, params, model_params):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--image', type=str, required=True, help='input image')
+    parser.add_argument('--config', type=str, default='NYU_Small_Hand', help='config from config.py')
     parser.add_argument('--output', type=str, default='result.png', help='output image')
     parser.add_argument('--model', type=str, default='model/keras/model.h5', help='path to the weights file')
 
@@ -236,22 +255,23 @@ if __name__ == '__main__':
     input_image = args.image
     output = args.output
     keras_weights_file = args.model
+    config = GetConfig(args.config)
 
-    tic = time.time()
-    print('start processing...')
 
     # load model
 
     # authors of original model don't use
     # vgg normalization (subtracting mean) on input images
-    model = get_testing_model()
+    model = get_testing_model(config.paf_layers, config.num_parts_with_background)
     model.load_weights(keras_weights_file)
 
     # load config
     params, model_params = config_reader()
 
+    print('start processing...')
+    tic = time.time()
     # generate image with body parts
-    canvas = process(input_image, params, model_params)
+    canvas = process(input_image, params, model_params, config)
 
     toc = time.time()
     print ('processing time is %.5f' % (toc - tic))

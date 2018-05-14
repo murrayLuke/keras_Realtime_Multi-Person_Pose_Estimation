@@ -5,6 +5,20 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: demo_image.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "--image",
+                "hand_demo_image.jpg",
+                "--output",
+                "result.png",
+                "--model",
+                "training/NYU_Small_Hand/nyu_small_hand_short_one/weights.0006.h5"
+            ]
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
