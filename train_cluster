@@ -4,10 +4,10 @@
 #$ -cwd
 #
 #  This is a long-running job
-#$ -l hour
+#$ -l day  
 #
 #  Can use up to 6GB of memory
-#$ -l vf=4G
+#$ -l vf=6G
 #
 #  Use 4 GPUs
 #$ -l gpus=4
@@ -17,4 +17,4 @@
 which python
 cd /gpfs/data/jhtlab/CSCI2951I/hands/keras_Realtime_Multi-Person_Pose_Estimation/training
 
-python ./train_pose.py train NYU_Hand nyu_hand_short_one
+python ./train_pose.py train NYU_Hand nyu_hand_long_one
