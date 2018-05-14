@@ -13,7 +13,9 @@ class CanonicalConfig:
 
         self.stride = 8
 
-        self.parts = ["nose", "neck", "Rsho", "Relb", "Rwri", "Lsho", "Lelb", "Lwri", "Rhip", "Rkne", "Rank", "Lhip", "Lkne", "Lank", "Reye", "Leye", "Rear", "Lear"]
+        self.parts = ["nose", "neck", "Rsho", "Relb", "Rwri", "Lsho", "Lelb", 
+        "Lwri", "Rhip", "Rkne", "Rank", "Lhip", "Lkne", 
+        "Lank", "Reye", "Leye", "Rear", "Lear"]
         self.num_parts = len(self.parts)
         self.parts_dict = dict(zip(self.parts, range(self.num_parts)))
         self.parts += ["background"]
@@ -180,8 +182,8 @@ class HandConfigSmall:
         'PALM_1']
         self.num_parts = len(self.parts)
         self.parts_dict = dict(zip(self.parts, range(self.num_parts)))
-        # self.parts += ["background"] # TODO wtf is the background
-        # self.num_parts_with_background = len(self.parts)
+        self.parts += ["background"] # TODO wtf is the background
+        self.num_parts_with_background = len(self.parts)
 
         # flipping doesn't make sense for hands
         self.leftParts = None
