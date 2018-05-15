@@ -8,6 +8,9 @@ from config_reader import config_reader
 from scipy.ndimage.filters import gaussian_filter
 from model import get_testing_model
 from config import GetConfig
+import matplotlib.pyplot as plt
+from skimage.feature import peak_local_max
+from numpy import ma
 
 
 # find connection in the specified sequence, center 29 is in the position 15
@@ -30,13 +33,6 @@ colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0]
 
 def process (input_image, params, model_params, config):
 
-    # limbSeq = []
-    # mapIdx = []
-    # for (i,(fr,to)) in enumerate(config.limbs_conn):
-    #     limbSeq.append([fr, to])
-    #     mapIdx.append[[i * 2, i * 2 + 1]]
-
-
     limbSeq = [list(x) for x in config.limbs_conn]
     numLimbConn = len(limbSeq)
     numParts = config.num_parts
@@ -49,111 +45,186 @@ def process (input_image, params, model_params, config):
     # list of float multipliers used for scaling
     multiplier = [x * model_params['boxsize'] / oriImg.shape[0] for x in params['scale_search']]
 
-
+    # array to store the avg heatmap
     heatmap_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], numPartsWithBackground))
+
+    # array to store avg part affinity field
     paf_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], 2 * numLimbConn))
 
+    # iterate over the different scales
     for m in range(len(multiplier)):
+
+
         scale = multiplier[m]
 
+        # resize the image to the given scale
         imageToTest = cv2.resize(oriImg, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+
+        # pad the lower right side of the image so it matches the stride
         imageToTest_padded, pad = util.padRightDownCorner(imageToTest, model_params['stride'],
                                                           model_params['padValue'])
 
+        # get network's predictions based on the input image
         input_img = np.transpose(np.float32(imageToTest_padded[:,:,:,np.newaxis]), (3,0,1,2)) # required shape (1, width, height, channels)
 
+        # predict on the input image
         output_blobs = model.predict(input_img)
 
         # extract outputs, resize, and remove padding
+
+        # heatmap comes out reduced from og size by 'stride' size and scale size
         heatmap = np.squeeze(output_blobs[1])  # output 1 is heatmaps
+    
+        # resize the heatmap to og image size + padding
         heatmap = cv2.resize(heatmap, (0, 0), fx=model_params['stride'], fy=model_params['stride'],
                              interpolation=cv2.INTER_CUBIC)
+
+        # remove the padding from the heatmap
         heatmap = heatmap[:imageToTest_padded.shape[0] - pad[2], :imageToTest_padded.shape[1] - pad[3],
                   :]
+        
+        # scale the heatmap to the original size
         heatmap = cv2.resize(heatmap, (oriImg.shape[1], oriImg.shape[0]), interpolation=cv2.INTER_CUBIC)
 
+        # do the same scaling on the part affinity field
         paf = np.squeeze(output_blobs[0])  # output 0 is PAFs
         paf = cv2.resize(paf, (0, 0), fx=model_params['stride'], fy=model_params['stride'],
                          interpolation=cv2.INTER_CUBIC)
         paf = paf[:imageToTest_padded.shape[0] - pad[2], :imageToTest_padded.shape[1] - pad[3], :]
         paf = cv2.resize(paf, (oriImg.shape[1], oriImg.shape[0]), interpolation=cv2.INTER_CUBIC)
 
+
+        # sum and save in heatmap avg
         heatmap_avg = heatmap_avg + heatmap / len(multiplier)
         paf_avg = paf_avg + paf / len(multiplier)
 
+
+    # here heatmap_avg and paf_avg are same size as original image
+
+    # each list is for a single part
+    # all_peaks is a list of lists [(col, row, score, id), (col, row, score, id)] of peaks and scores and unique ids
     all_peaks = []
+    # used to generate unique ids for peaks
     peak_counter = 0
 
+    # iterate over the parts
     for part in range(numParts):
+
+        # get the avg heatmap associated with the part
         map_ori = heatmap_avg[:, :, part]
+
+        # smooth the avg heatmap associated with the part
         map = gaussian_filter(map_ori, sigma=3)
 
-        map_left = np.zeros(map.shape)
-        map_left[1:, :] = map[:-1, :]
-        map_right = np.zeros(map.shape)
-        map_right[:-1, :] = map[1:, :]
-        map_up = np.zeros(map.shape)
-        map_up[:, 1:] = map[:, :-1]
-        map_down = np.zeros(map.shape)
-        map_down[:, :-1] = map[:, 1:]
+        # get the local peaks from the average heatmap (True, False array where True is peak, same size as og img)
+        peaks_binary = peak_local_max(map, min_distance=1, threshold_abs=params['thre1'], indices=False)
 
-        peaks_binary = np.logical_and.reduce(
-            (map >= map_left, map >= map_right, map >= map_up, map >= map_down, map > params['thre1']))
+        # peaks is a list [[col, row], [col, row]] of peak coordinates
         peaks = list(zip(np.nonzero(peaks_binary)[1], np.nonzero(peaks_binary)[0]))  # note reverse
+
+        # peaks with score is a list [(col, row, score), (col, row, score)] of peaks and scores
         peaks_with_score = [x + (map_ori[x[1], x[0]],) for x in peaks]
+
+        # unique ids for peaks
         id = range(peak_counter, peak_counter + len(peaks))
+
+        # peaks_with_score_and_id is a list [(col, row, score, id), (col, row, score, id)] of peaks and scores and unique ids
         peaks_with_score_and_id = [peaks_with_score[i] + (id[i],) for i in range(len(id))]
 
+        # store peaks and update peak counter
         all_peaks.append(peaks_with_score_and_id)
         peak_counter += len(peaks)
 
+    # TODO define what these are
+
+    # a list containing k arrays vertically stacked with 
+    # [from peakID, toPeakId, score_with_dist_prior, all_peaks[limbSeq[k][0]] index, all_peaks[limbSeq[k][1]] index]
+    # if there are no candidates for either from, or to, or both then we add the connection index k to special k
+    # and we append an empty list to connection_all
     connection_all = []
     special_k = []
-    mid_num = 10
+    mid_num = params['mid_num']
 
+    # iterate over xy mapping in mapIdx 
     for k in range(len(mapIdx)):
-        score_mid = paf_avg[:, :, [x for x in mapIdx[k]]]
+
+        # score_mid [0] is the x vector
+        # score_mid [1] is the y vector
+        score_mid = paf_avg[:, :, mapIdx[k]]
+
+        # candA is a list [(col, row, score, id), (col, row, score, id)] of peaks and scores and unique ids for the from part
         candA = all_peaks[limbSeq[k][0]]
+        # candB is a list [(col, row, score, id), (col, row, score, id)] of peaks and scores and unique ids for the to part
         candB = all_peaks[limbSeq[k][1]]
+
+        # get the number of candidates for a and b
         nA = len(candA)
         nB = len(candB)
         # indexA, indexB = limbSeq[k]
         if (nA != 0 and nB != 0):
             connection_candidate = []
+            # i is index into candA
             for i in range(nA):
+                # j is index into candB
                 for j in range(nB):
+
+                    # B - A => TO - From => vec from -> to
+                    # vec is a vector [col, row] pointing in the direction of the part connection
                     vec = np.subtract(candB[j][:2], candA[i][:2])
+                    # norm is the length of the connection
                     norm = math.sqrt(vec[0] * vec[0] + vec[1] * vec[1])
                     # failure case when 2 body parts overlaps
                     if norm == 0:
                         continue
+
+                    # normalize the vec still (col, row)
                     vec = np.divide(vec, norm)
 
+                    # generate midnum points in a list [(x, y)] ranging from -> to
                     startend = list(zip(np.linspace(candA[i][0], candB[j][0], num=mid_num), \
                                    np.linspace(candA[i][1], candB[j][1], num=mid_num)))
 
+                    # get the x vectors from the paf_avg along the midpoints from -> to
                     vec_x = np.array(
                         [score_mid[int(round(startend[I][1])), int(round(startend[I][0])), 0] \
                          for I in range(len(startend))])
+
+                    # get the y vectors from the paf_avg along the midpoints from -> to
                     vec_y = np.array(
                         [score_mid[int(round(startend[I][1])), int(round(startend[I][0])), 1] \
                          for I in range(len(startend))])
 
+                    # get the dot products for each of the interpolated paf_avg points and the normalized vector from -> to (col, row)
                     score_midpts = np.multiply(vec_x, vec[0]) + np.multiply(vec_y, vec[1])
+                    
+                    # float score taking into acount the size of the image and the distance between the points
                     score_with_dist_prior = sum(score_midpts) / len(score_midpts) + min(
                         0.5 * oriImg.shape[0] / norm - 1, 0)
+
+                    # at least .8 of the midpts have a dot product greater than thre2
                     criterion1 = len(np.nonzero(score_midpts > params['thre2'])[0]) > 0.8 * len(
                         score_midpts)
+
+                    # average dot product scaled by distance is greater than 0
                     criterion2 = score_with_dist_prior > 0
+
+                    # if both criterion are good
                     if criterion1 and criterion2:
+                        # add a list to the connection_candidate of the a index, b index, score with dist prior and
+                        # the score summed with the heatmap scores
                         connection_candidate.append([i, j, score_with_dist_prior,
                                                      score_with_dist_prior + candA[i][2] + candB[j][2]])
 
+
+            # connection_candidate is a list of lists for connection k with [[a index, b index, score_with_dist_prior, score_width_dist_prior + heatmapscores for a and b]]
+            
+            # sort the connection_candidates from high to low by their score_with_dist_prior
             connection_candidate = sorted(connection_candidate, key=lambda x: x[2], reverse=True)
             connection = np.zeros((0, 5))
             for c in range(len(connection_candidate)):
-                i, j, s = connection_candidate[c][0:3]
+                i, j, s = connection_candidate[c][0:3] # candA index, candB index, score_width_dist_prior
                 if (i not in connection[:, 3] and j not in connection[:, 4]):
+                    # append from peakID, toPeakId, score_width_dist_prior, candA index, candB index
                     connection = np.vstack([connection, [candA[i][3], candB[j][3], s, i, j]])
                     if (len(connection) >= min(nA, nB)):
                         break
@@ -212,7 +283,7 @@ def process (input_image, params, model_params, config):
                     subset = np.vstack([subset, row])
 
     # delete some rows of subset which has few parts occur
-    deleteIdx = [];
+    deleteIdx = []
     for i in range(len(subset)):
         if subset[i][-1] < 4 or subset[i][-2] / subset[i][-1] < 0.4:
             deleteIdx.append(i)
@@ -282,3 +353,38 @@ if __name__ == '__main__':
 
 
 
+
+# code to visualize a paf
+
+# # flip x coordinate in paf_avg #TODO why
+# U = paf_avg[:,:,16] * -1
+# # get y coordinate in paf_avg
+# V = paf_avg[:,:,17]
+
+# # generate x y coordinates of ogImg size
+# X, Y = np.meshgrid(np.arange(U.shape[1]), np.arange(U.shape[0]))
+
+# # render the original image
+# plt.figure()
+# plt.imshow(oriImg[:,:,[2,1,0]], alpha = .5)
+
+# # plot arrows in U and V at the coordinates of X and Y
+# s = 5 # the stride used to plot arrows (5 is every fifth arrow)
+# plt.quiver(X[::s,::s], Y[::s,::s], U[::s,::s], V[::s,::s], 
+#                scale=50, headaxislength=4, alpha=.5, width=0.001, color='r')
+
+# # generate a false array of ogImg size
+# M = np.zeros(U.shape, dtype='bool')
+
+# # mask vectors where the length of the paf vector is less than .5
+# M[U**2 + V**2 < 0.5 * 0.5] = True
+
+# # mask small vectors in paf
+# U = ma.masked_array(U, mask=M)
+# V = ma.masked_array(V, mask=M)
+
+# plt.quiver(X[::s,::s], Y[::s,::s], U[::s,::s], V[::s,::s], 
+#                scale=50, headaxislength=4, alpha=.5, width=0.001, color='b')
+
+# fig = matplotlib.pyplot.gcf()
+# fig.set_size_inches(20, 20)
