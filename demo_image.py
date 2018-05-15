@@ -86,7 +86,7 @@ def process (input_image, params, model_params, config):
 
 
     # MY CODE VISUALIZE HEAT
-    # save_all_heat(oriImg, heatmap_avg, numParts, config)
+    save_all_heat(oriImg, heatmap_avg, numParts, config)
     save_all_paf(oriImg, paf_avg, mapIdx, config)
     # for partIdx in range(numParts):
     #     visualize_heat(oriImg, heatmap_avg, partIdx, config)
