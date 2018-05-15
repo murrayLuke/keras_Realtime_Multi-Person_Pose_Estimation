@@ -23,6 +23,7 @@ def config_reader():
     param['thre3'] = float(param['thre3'])
     param['mid_num'] = int(param['mid_num'])
     param['min_num'] = int(param['min_num'])
+    param['dp_perc'] = float(param['dp_perc'])
     param['crop_ratio'] = float(param['crop_ratio'])
     param['bbox_ratio'] = float(param['bbox_ratio'])
     param['GPUdeviceNumber'] = int(param['GPUdeviceNumber'])

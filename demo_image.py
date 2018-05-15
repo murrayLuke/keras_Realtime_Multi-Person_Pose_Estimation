@@ -12,25 +12,6 @@ import matplotlib.pyplot as plt
 from skimage.feature import peak_local_max
 from numpy import ma
 
-
-# find connection in the specified sequence, center 29 is in the position 15
-limbSeq = [[2, 3], [2, 6], [3, 4], [4, 5], [6, 7], [7, 8], [2, 9], [9, 10], \
-           [10, 11], [2, 12], [12, 13], [13, 14], [2, 1], [1, 15], [15, 17], \
-           [1, 16], [16, 18], [3, 17], [6, 18]]
-
-# the middle joints heatmap correpondence
-mapIdx = [[31, 32], [39, 40], [33, 34], [35, 36], [41, 42], [43, 44], [19, 20], [21, 22], \
-          [23, 24], [25, 26], [27, 28], [29, 30], [47, 48], [49, 50], [53, 54], [51, 52], \
-          [55, 56], [37, 38], [45, 46]]
-
-# visualize
-colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0],
-          [0, 255, 0], \
-          [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255],
-          [85, 0, 255], \
-          [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85], [255, 0, 85], [255, 0, 85], [255, 0, 85]]
-
-
 def process (input_image, params, model_params, config):
 
     limbSeq = [list(x) for x in config.limbs_conn]
@@ -38,6 +19,11 @@ def process (input_image, params, model_params, config):
     numParts = config.num_parts
     numPartsWithBackground = config.num_parts_with_background
     mapIdx = [[x * 2, x * 2 + 1] for x in range(numLimbConn)]
+
+    
+    cmap = get_cmap(numParts)
+    colors = [cmap(i) for i in range(numParts)]
+    colors = [[int(r * 255), int(g * 255), int(b * 255)] for (r, g, b, a) in colors]
 
     # read the input image
     oriImg = cv2.imread(input_image)  # B,G,R order
@@ -99,6 +85,16 @@ def process (input_image, params, model_params, config):
         paf_avg = paf_avg + paf / len(multiplier)
 
 
+    # MY CODE VISUALIZE HEAT
+    # save_all_heat(oriImg, heatmap_avg, numParts, config)
+    save_all_paf(oriImg, paf_avg, mapIdx, config)
+    # for partIdx in range(numParts):
+    #     visualize_heat(oriImg, heatmap_avg, partIdx, config)
+
+    # MY CODE VISUALIZE PAF
+    # for _, fromTO in enumerate(mapIdx):
+    #     visualize_paf(oriImg, paf_avg, fromTO, config)
+
     # here heatmap_avg and paf_avg are same size as original image
 
     # each list is for a single part
@@ -159,7 +155,12 @@ def process (input_image, params, model_params, config):
 
         # get the number of candidates for a and b
         nA = len(candA)
+        if nA == 0:
+            print(f"no peaks for {config.parts[limbSeq[k][0]]}")
+
         nB = len(candB)
+        if nB == 0:
+            print(f"no peaks for {config.parts[limbSeq[k][1]]}")
         # indexA, indexB = limbSeq[k]
         if (nA != 0 and nB != 0):
             connection_candidate = []
@@ -202,7 +203,7 @@ def process (input_image, params, model_params, config):
                         0.5 * oriImg.shape[0] / norm - 1, 0)
 
                     # at least .8 of the midpts have a dot product greater than thre2
-                    criterion1 = len(np.nonzero(score_midpts > params['thre2'])[0]) > 0.8 * len(
+                    criterion1 = len(np.nonzero(score_midpts > params['thre2'])[0]) > params['dp_perc'] * len(
                         score_midpts)
 
                     # average dot product scaled by distance is greater than 0
@@ -234,17 +235,28 @@ def process (input_image, params, model_params, config):
             special_k.append(k)
             connection_all.append([])
 
+
+
+    print(f'missing candidates for {[[config.parts[config.limbs_conn[mapIdx[x][0] // 2][0]], config.parts[config.limbs_conn[mapIdx[x][0] // 2][1]]] for x in special_k]}')
+
     # last number in each row is the total parts number of that person
     # the second last number in each row is the score of the overall configuration
     subset = -1 * np.ones((0, numParts + 2))
+
+    # all_peaks is a list of lists [(col, row, score, id), (col, row, score, id)] of peaks and scores and unique ids
+    # candidate is an array of all the peaks (col, row, score, id)
     candidate = np.array([item for sublist in all_peaks for item in sublist])
 
     for k in range(len(mapIdx)):
         if k not in special_k:
+            # from peak id's
             partAs = connection_all[k][:, 0]
+            # to peak ids
             partBs = connection_all[k][:, 1]
+            # index into parts of from and to
             indexA, indexB = np.array(limbSeq[k])
 
+            # iterate over possible connections
             for i in range(len(connection_all[k])):  # = 1:size(temp,1)
                 found = 0
                 subset_idx = [-1, -1]
@@ -285,7 +297,7 @@ def process (input_image, params, model_params, config):
     # delete some rows of subset which has few parts occur
     deleteIdx = []
     for i in range(len(subset)):
-        if subset[i][-1] < 4 or subset[i][-2] / subset[i][-1] < 0.4:
+        if subset[i][-1] < params['min_num'] or subset[i][-2] / subset[i][-1] < params['thre3']:
             deleteIdx.append(i)
     subset = np.delete(subset, deleteIdx, axis=0)
 
@@ -314,6 +326,118 @@ def process (input_image, params, model_params, config):
             canvas = cv2.addWeighted(canvas, 0.4, cur_canvas, 0.6, 0)
 
     return canvas
+
+def get_cmap(n, name='hsv'):
+    '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+    RGB color; the keyword argument name must be a standard mpl colormap name.'''
+    return plt.cm.get_cmap(name, n)
+
+def visualize_paf(oriImg, paf_avg, idxFromMap, config):
+    # # flip x coordinate in paf_avg #TODO why
+    U = paf_avg[:,:,idxFromMap[0]] * -1
+    # get y coordinate in paf_avg
+    V = paf_avg[:,:,idxFromMap[1]]
+
+    # generate x y coordinates of ogImg size
+    X, Y = np.meshgrid(np.arange(U.shape[1]), np.arange(U.shape[0]))
+
+    # render the original image
+    plt.figure()
+    plt.imshow(oriImg[:,:,[2,1,0]], alpha = .5)
+
+    # plot arrows in U and V at the coordinates of X and Y
+    s = 5 # the stride used to plot arrows (5 is every fifth arrow)
+    plt.quiver(X[::s,::s], Y[::s,::s], U[::s,::s], V[::s,::s], 
+                scale=50, headaxislength=4, alpha=.5, width=0.001, color='r')
+
+    # generate a false array of ogImg size
+    M = np.zeros(U.shape, dtype='bool')
+
+    # mask vectors where the length of the paf vector is less than .5
+    M[U**2 + V**2 < 0.5 * 0.5] = True
+
+    # mask small vectors in paf
+    U = ma.masked_array(U, mask=M)
+    V = ma.masked_array(V, mask=M)
+
+    plt.quiver(X[::s,::s], Y[::s,::s], U[::s,::s], V[::s,::s], 
+                scale=50, headaxislength=4, alpha=.5, width=0.001, color='b')
+
+    limb = config.limbs_conn[idxFromMap[0] // 2]
+    plt.title(f"paf from {config.parts[limb[0]]} to {config.parts[limb[1]]}")
+    fig = plt.gcf()
+    fig.set_size_inches(10, 10)
+    plt.show()
+
+def save_all_paf(oriImg, paf_avg, mapIdx, config):
+    fig = plt.figure()
+    fig.set_size_inches(40, 40)
+
+    fig.subplots_adjust(hspace=0.2, wspace=0.2)
+    for i, idxFromMap in enumerate(mapIdx):
+        plt.subplot(len(mapIdx) // 3  + 1, 3, i + 1)
+
+        # # flip x coordinate in paf_avg #TODO why
+        U = paf_avg[:,:,idxFromMap[0]] * -1
+        # get y coordinate in paf_avg
+        V = paf_avg[:,:,idxFromMap[1]]
+
+        # generate x y coordinates of ogImg size
+        X, Y = np.meshgrid(np.arange(U.shape[1]), np.arange(U.shape[0]))
+
+        # render the original image
+        plt.imshow(oriImg[:,:,[2,1,0]], alpha = .5)
+
+        # plot arrows in U and V at the coordinates of X and Y
+        s = 5 # the stride used to plot arrows (5 is every fifth arrow)
+        plt.quiver(X[::s,::s], Y[::s,::s], U[::s,::s], V[::s,::s], 
+                    scale=50, headaxislength=4, alpha=.5, width=0.001, color='r')
+
+        # generate a false array of ogImg size
+        M = np.zeros(U.shape, dtype='bool')
+
+        # mask vectors where the length of the paf vector is less than .5
+        M[U**2 + V**2 < 0.5 * 0.5] = True
+
+        # mask small vectors in paf
+        U = ma.masked_array(U, mask=M)
+        V = ma.masked_array(V, mask=M)
+
+        plt.quiver(X[::s,::s], Y[::s,::s], U[::s,::s], V[::s,::s], 
+                    scale=50, headaxislength=4, alpha=.5, width=0.001, color='b')
+
+        limb = config.limbs_conn[idxFromMap[0] // 2]
+        plt.title(f"paf from {config.parts[limb[0]]} to {config.parts[limb[1]]}")
+
+    plt.savefig('paf_result.png')
+
+def visualize_heat(oriImg, heatmap_avg, partIdx, config):
+
+    # render the original image
+    plt.figure()
+    plt.imshow(oriImg[:,:,[2,1,0]])
+    plt.imshow(heatmap_avg[:, :, partIdx], alpha = .5)
+
+    plt.title(f"heatmap for {config.parts[partIdx]}")
+
+    fig = plt.gcf()
+    fig.set_size_inches(10, 10)
+    plt.show()
+
+def save_all_heat(oriImg, heatmap_avg, numParts, config):
+    fig = plt.figure()
+    fig.set_size_inches(40, 40)
+
+    fig.subplots_adjust(hspace=0.4, wspace=0.4)
+    for partIdx in range(numParts):
+        plt.subplot(numParts // 3, 3, partIdx + 1)
+        plt.imshow(oriImg[:,:,[2,1,0]])
+        plt.imshow(heatmap_avg[:, :, partIdx], alpha = .5)
+
+        plt.title(f"heatmap for {config.parts[partIdx]}")
+
+    plt.savefig('heatmap_result.svg')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -350,41 +474,3 @@ if __name__ == '__main__':
     cv2.imwrite(output, canvas)
 
     cv2.destroyAllWindows()
-
-
-
-
-# code to visualize a paf
-
-# # flip x coordinate in paf_avg #TODO why
-# U = paf_avg[:,:,16] * -1
-# # get y coordinate in paf_avg
-# V = paf_avg[:,:,17]
-
-# # generate x y coordinates of ogImg size
-# X, Y = np.meshgrid(np.arange(U.shape[1]), np.arange(U.shape[0]))
-
-# # render the original image
-# plt.figure()
-# plt.imshow(oriImg[:,:,[2,1,0]], alpha = .5)
-
-# # plot arrows in U and V at the coordinates of X and Y
-# s = 5 # the stride used to plot arrows (5 is every fifth arrow)
-# plt.quiver(X[::s,::s], Y[::s,::s], U[::s,::s], V[::s,::s], 
-#                scale=50, headaxislength=4, alpha=.5, width=0.001, color='r')
-
-# # generate a false array of ogImg size
-# M = np.zeros(U.shape, dtype='bool')
-
-# # mask vectors where the length of the paf vector is less than .5
-# M[U**2 + V**2 < 0.5 * 0.5] = True
-
-# # mask small vectors in paf
-# U = ma.masked_array(U, mask=M)
-# V = ma.masked_array(V, mask=M)
-
-# plt.quiver(X[::s,::s], Y[::s,::s], U[::s,::s], V[::s,::s], 
-#                scale=50, headaxislength=4, alpha=.5, width=0.001, color='b')
-
-# fig = matplotlib.pyplot.gcf()
-# fig.set_size_inches(20, 20)

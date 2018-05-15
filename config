@@ -14,11 +14,18 @@ octave = 3
 starting_range = 0.8
 ending_range = 2
 scale_search = 0.5, 1, 1.5, 2
+# the minimum value for a peak to be considered in the heatmap og .1
 thre1 = 0.1
-thre2 = 0.05 
-thre3 = 0.5 
+# the minimum dot product value need in the paf to consider a connection between two points og .05
+thre2 = 0.01
+# the minimum average score for connected components to remain in the final drawing og .5
+thre3 = 0.2 
+# minimum number of connected components to remain in final drawing og 4
 min_num = 4
-mid_num = 10
+# number of pts to interpolate over paf # og 10
+mid_num = 20
+# percent of dot products greater than thre2 og .8
+dp_perc = 0.3
 crop_ratio = 2.5
 bbox_ratio = 0.25
 
